@@ -6,9 +6,10 @@ from django.conf.urls.defaults import patterns, url
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned, ValidationError
 from django.core.urlresolvers import NoReverseMatch, reverse, resolve, Resolver404, get_script_prefix
 from django.db import transaction
-from django.db.models.sql.constants import QUERY_TERMS, LOOKUP_SEP
+from django.db.models.sql.constants import QUERY_TERMS
 from django.http import HttpResponse, HttpResponseNotFound
 from django.utils.cache import patch_cache_control
+import sys
 from tastypie.authentication import Authentication
 from tastypie.authorization import ReadOnlyAuthorization
 from tastypie.bundle import Bundle
@@ -27,12 +28,22 @@ try:
     set
 except NameError:
     from sets import Set as set
+# copycompat deprecated in Django 1.5.  If python version is at least 2.5, it
+# is safe to use the native python copy module.
 # The ``copy`` module became function-friendly in Python 2.5 and
 # ``copycompat`` was added in post 1.1.1 Django (r11901)..
-try:
-    from django.utils.copycompat import deepcopy
-except ImportError:
-    from copy import deepcopy
+if sys.version_info >= (2,5):
+    try:
+        from copy import deepcopy
+    except ImportError:
+        from django.utils.copycompat import deepcopy
+else:
+    # For python older than 2.5, we must be running a version of Django before
+    # copycompat was deprecated.
+    try:
+        from django.utils.copycompat import deepcopy
+    except ImportError:
+        from copy import deepcopy
 # If ``csrf_exempt`` isn't present, stub it.
 try:
     from django.views.decorators.csrf import csrf_exempt
@@ -40,10 +51,11 @@ except ImportError:
     def csrf_exempt(func):
         return func
 
-
-class NOT_AVAILABLE:
-    def __str__(self):
-        return 'No such data is available.'
+# Django 1.5 has moved this constant up one level.
+try:
+    from django.db.models.constants import LOOKUP_SEP
+except ImportError:
+    from django.db.models.sql.constants import LOOKUP_SEP
 
 
 class ResourceOptions(object):
